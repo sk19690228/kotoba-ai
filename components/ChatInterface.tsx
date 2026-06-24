@@ -6,6 +6,7 @@ import MessageBubble from './MessageBubble';
 import WordCard from './WordCard';
 import AmuletMessage from './AmuletMessage';
 import SpeakButton from './SpeakButton';
+import VoiceInputButton from './VoiceInputButton';
 
 const WELCOME_QUESTION = 'どんなことでお悩みですか？どんな小さなことでも、安心してお話ください。';
 
@@ -18,6 +19,7 @@ export default function ChatInterface() {
   const [isStarted, setIsStarted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voiceBaseRef = useRef<string>('');
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -292,18 +294,26 @@ export default function ChatInterface() {
               placeholder="お悩みをお聞かせください..."
               rows={1}
               disabled={isLoading}
-              className="flex-1 resize-none rounded-2xl border border-amber-200 bg-amber-50/40 px-4 py-3 text-sm text-gray-800 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent disabled:opacity-50 leading-relaxed"
+              className="flex-1 resize-none rounded-2xl border border-amber-200 bg-amber-50/40 px-4 py-3 text-sm text-gray-800 placeholder-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent disabled:opacity-50 leading-relaxed"
               style={{ minHeight: '44px', maxHeight: '144px' }}
+            />
+            <VoiceInputButton
+              disabled={isLoading}
+              onStart={() => { voiceBaseRef.current = input; }}
+              onTranscript={(text) => {
+                setInput(voiceBaseRef.current + text);
+                setTimeout(autoResizeTextarea, 0);
+              }}
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
-              className="rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:bg-amber-200 text-white px-5 py-3 text-sm font-semibold transition-colors h-11 flex items-center justify-center min-w-[64px] shadow-sm"
+              className="rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:bg-amber-200 text-amber-900 px-5 py-3 text-sm font-semibold transition-colors h-11 flex items-center justify-center min-w-[64px] shadow-sm"
             >
               送信
             </button>
           </form>
-          <p className="text-center text-xs text-amber-300 mt-1.5">
+          <p className="text-center text-xs text-amber-900 mt-1.5">
             Enterで送信 &nbsp;/&nbsp; Shift+Enterで改行
           </p>
         </footer>

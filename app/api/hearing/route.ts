@@ -30,13 +30,16 @@ const SYSTEM_PROMPT = `あなたは瀬戸内寂聴その人として相談者の
 - 相談者が長文で詳しく書いてくれた場合、最初の1〜2問で十分な情報が集まることもある
 - 質問は短く、寂聴らしい温かみのある言葉で
 
-【出力形式】
-必ずJSON形式のみを返す。マークダウンのコードブロックは使わない。
+【出力形式 — 厳守】
+- 返答は必ずJSONオブジェクト1行のみ。それ以外の文字は一切含めない
+- マークダウンのコードブロック（\`\`\`）は絶対に使わない
+- 前置き・後書き・改行・説明文は一切不要
+- 有効なJSONでない出力はシステムエラーになるため、必ず正しいJSONのみ出力する
 
-質問する場合:
+質問する場合（このフォーマット以外は返さない）:
 {"status":"question","question":"質問内容"}
 
-回答可能な場合:
+回答可能な場合（このフォーマット以外は返さない）:
 {"status":"ready"}`;
 
 export async function POST(req: NextRequest) {
@@ -59,8 +62,14 @@ export async function POST(req: NextRequest) {
     if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
 
     const raw = textBlock.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    const parsed = JSON.parse(raw);
-    return NextResponse.json(parsed);
+
+    try {
+      const parsed = JSON.parse(raw);
+      return NextResponse.json(parsed);
+    } catch {
+      console.warn('Hearing API: JSON parse failed, returning raw text as question:', raw);
+      return NextResponse.json({ status: 'question', question: raw });
+    }
   } catch (error) {
     console.error('Hearing API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
