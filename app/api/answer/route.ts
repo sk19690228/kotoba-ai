@@ -33,21 +33,12 @@ const SYSTEM_PROMPT = `あなたは瀬戸内寂聴として、相談者の悩み
 - section3: 今日から始められる具体的な行動を1〜3つ、寂聴の言葉で押しつけがましくなく200〜400文字で書く（見出しは含めない）
 - todaysWord: 20文字以内の短い詩的な励ましの一言（寂聴らしい言葉で）
 - section5: 今の状況でも感謝できる小さなことを1つ、寂聴の言葉で200〜400文字で書く（見出しは含めない）
-- amuletMessage: 100文字以内の、寂聴が「あなた」へ直接語りかけるお守りメッセージ`;
+- amuletMessage: 100文字以内の、寂聴が「あなた」へ直接語りかけるお守りメッセージ
 
-const OUTPUT_SCHEMA = {
-  type: 'object',
-  properties: {
-    section1: { type: 'string' },
-    section2: { type: 'string' },
-    section3: { type: 'string' },
-    todaysWord: { type: 'string' },
-    section5: { type: 'string' },
-    amuletMessage: { type: 'string' },
-  },
-  required: ['section1', 'section2', 'section3', 'todaysWord', 'section5', 'amuletMessage'],
-  additionalProperties: false,
-} as const;
+【出力形式 — 厳守】
+返答は必ず以下の形式のJSONオブジェクト1つのみ出力すること。前置き・後書き・マークダウン・説明文は一切含めない。
+{"section1":"...","section2":"...","section3":"...","todaysWord":"...","section5":"...","amuletMessage":"..."}`;
+
 
 export async function POST(req: NextRequest) {
   try {
