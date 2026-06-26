@@ -2,23 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAnthropic } from '@/lib/anthropic';
 import type { Message } from '@/types';
 
-function extractFirstJson(text: string): string | null {
-  const start = text.indexOf('{');
-  if (start === -1) return null;
-  let depth = 0, inStr = false, esc = false;
-  for (let i = start; i < text.length; i++) {
-    const c = text[i];
-    if (esc) { esc = false; continue; }
-    if (c === '\\' && inStr) { esc = true; continue; }
-    if (c === '"') { inStr = !inStr; continue; }
-    if (!inStr) {
-      if (c === '{') depth++;
-      else if (c === '}' && --depth === 0) return text.slice(start, i + 1);
-    }
-  }
-  return null;
-}
-
 const SYSTEM_PROMPT = `あなたは瀬戸内寂聴として、相談者の悩みに法話のように語りかけます。
 
 【寂聴の話し方の特徴 — 必ず守ること】
@@ -50,12 +33,24 @@ const SYSTEM_PROMPT = `あなたは瀬戸内寂聴として、相談者の悩み
 - section3: 今日から始められる具体的な行動を1〜3つ、寂聴の言葉で押しつけがましくなく200〜400文字で書く（見出しは含めない）
 - todaysWord: 20文字以内の短い詩的な励ましの一言（寂聴らしい言葉で）
 - section5: 今の状況でも感謝できる小さなことを1つ、寂聴の言葉で200〜400文字で書く（見出しは含めない）
-- amuletMessage: 100文字以内の、寂聴が「あなた」へ直接語りかけるお守りメッセージ
+- amuletMessage: 100文字以内の、寂聴が「あなた」へ直接語りかけるお守りメッセージ`;
 
-【出力形式 — 厳守】
-返答は必ず以下の形式のJSONオブジェクト1つのみ出力すること。前置き・後書き・マークダウン・説明文は一切含めない。
-{"section1":"...","section2":"...","section3":"...","todaysWord":"...","section5":"...","amuletMessage":"..."}`;
-
+const ANSWER_TOOL = {
+  name: 'provide_answer',
+  description: '寂聴として相談者への処方箋を各フィールドに記入して返す',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      section1: { type: 'string', description: '共感・言語化（200〜400文字）' },
+      section2: { type: 'string', description: '意味・希望（200〜400文字）' },
+      section3: { type: 'string', description: '具体的な行動（200〜400文字）' },
+      todaysWord: { type: 'string', description: '20文字以内の励ましの一言' },
+      section5: { type: 'string', description: '感謝できること（200〜400文字）' },
+      amuletMessage: { type: 'string', description: '100文字以内のお守りメッセージ' },
+    },
+    required: ['section1', 'section2', 'section3', 'todaysWord', 'section5', 'amuletMessage'],
+  },
+} as const;
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,18 +63,17 @@ export async function POST(req: NextRequest) {
 
     const response = await getAnthropic().messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: conversationHistory,
+      tools: [ANSWER_TOOL],
+      tool_choice: { type: 'tool', name: 'provide_answer' },
     });
 
-    const textBlock = response.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
+    const toolUse = response.content.find((b) => b.type === 'tool_use');
+    if (!toolUse || toolUse.type !== 'tool_use') throw new Error('No tool use in response');
 
-    const jsonStr = extractFirstJson(textBlock.text);
-    if (!jsonStr) throw new Error('No JSON found in response');
-    const parsed = JSON.parse(jsonStr);
-    return NextResponse.json(parsed);
+    return NextResponse.json(toolUse.input);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('Answer API error:', message);
