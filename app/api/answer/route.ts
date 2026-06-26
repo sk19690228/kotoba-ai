@@ -63,21 +63,17 @@ export async function POST(req: NextRequest) {
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
       messages: conversationHistory,
-      output_config: {
-        format: {
-          type: 'json_schema',
-          schema: OUTPUT_SCHEMA,
-        },
-      },
     });
 
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
 
-    const parsed = JSON.parse(textBlock.text);
+    const raw = textBlock.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const parsed = JSON.parse(raw);
     return NextResponse.json(parsed);
   } catch (error) {
-    console.error('Answer API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Answer API error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

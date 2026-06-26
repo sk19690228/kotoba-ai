@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'question', question: raw });
     }
   } catch (error) {
-    console.error('Hearing API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Hearing API error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

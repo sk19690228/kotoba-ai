@@ -69,7 +69,10 @@ export default function ChatInterface() {
         body: JSON.stringify({ messages: updatedMessages }),
       });
 
-      if (!hearingRes.ok) throw new Error(`HTTP ${hearingRes.status}`);
+      if (!hearingRes.ok) {
+        const errBody = await hearingRes.json().catch(() => ({}));
+        throw new Error(errBody.error ?? `HTTP ${hearingRes.status}`);
+      }
       const hearingData = await hearingRes.json();
 
       if (hearingData.status === 'question' && hearingData.question) {
@@ -102,7 +105,10 @@ export default function ChatInterface() {
           body: JSON.stringify({ messages: updatedMessages }),
         });
 
-        if (!answerRes.ok) throw new Error(`HTTP ${answerRes.status}`);
+        if (!answerRes.ok) {
+          const errBody = await answerRes.json().catch(() => ({}));
+          throw new Error(errBody.error ?? `HTTP ${answerRes.status}`);
+        }
         const answerData = await answerRes.json();
 
         setMessages((prev) => prev.filter((m) => m.id !== thinkingId));
@@ -110,13 +116,14 @@ export default function ChatInterface() {
         setPhase('complete');
       }
     } catch (err) {
-      console.error(err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error('Chat error:', errMsg);
       setMessages((prev) => [
         ...prev,
         {
           id: `${Date.now()}-err`,
           role: 'assistant',
-          content: '申し訳ありません。エラーが発生しました。もう一度お試しください。',
+          content: `申し訳ありません。エラーが発生しました。\n\n${errMsg}\n\nもう一度お試しください。`,
           timestamp: new Date(),
         },
       ]);
