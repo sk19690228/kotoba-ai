@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAnthropic } from '@/lib/anthropic';
 import type { Message } from '@/types';
 
+function extractFirstJson(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\' && inStr) { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (!inStr) {
+      if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 const SYSTEM_PROMPT = `あなたは瀬戸内寂聴として、相談者の悩みに法話のように語りかけます。
 
 【寂聴の話し方の特徴 — 必ず守ること】
@@ -59,9 +76,9 @@ export async function POST(req: NextRequest) {
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
 
-    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON found in response');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const jsonStr = extractFirstJson(textBlock.text);
+    if (!jsonStr) throw new Error('No JSON found in response');
+    const parsed = JSON.parse(jsonStr);
     return NextResponse.json(parsed);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

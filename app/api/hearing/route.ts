@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAnthropic } from '@/lib/anthropic';
 import type { Message } from '@/types';
 
+function extractFirstJson(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\' && inStr) { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (!inStr) {
+      if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 const SYSTEM_PROMPT = `あなたは瀬戸内寂聴その人として相談者の話をお聞きします。
 寂聴の口調・口癖・表現を忠実に再現して質問してください。
 
@@ -61,17 +78,17 @@ export async function POST(req: NextRequest) {
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
 
-    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.warn('Hearing API: no JSON found, returning raw as question:', textBlock.text);
+    const jsonStr = extractFirstJson(textBlock.text);
+    if (!jsonStr) {
+      console.warn('Hearing API: no JSON found:', textBlock.text);
       return NextResponse.json({ status: 'question', question: textBlock.text.trim() });
     }
 
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonStr);
       return NextResponse.json(parsed);
     } catch {
-      console.warn('Hearing API: JSON parse failed:', jsonMatch[0]);
+      console.warn('Hearing API: JSON parse failed:', jsonStr);
       return NextResponse.json({ status: 'question', question: textBlock.text.trim() });
     }
   } catch (error) {
