@@ -68,8 +68,9 @@ export async function POST(req: NextRequest) {
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
 
-    const raw = textBlock.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    const parsed = JSON.parse(raw);
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in response');
+    const parsed = JSON.parse(jsonMatch[0]);
     return NextResponse.json(parsed);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -61,14 +61,18 @@ export async function POST(req: NextRequest) {
     const textBlock = response.content.find((b) => b.type === 'text');
     if (!textBlock || textBlock.type !== 'text') throw new Error('No text response from AI');
 
-    const raw = textBlock.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn('Hearing API: no JSON found, returning raw as question:', textBlock.text);
+      return NextResponse.json({ status: 'question', question: textBlock.text.trim() });
+    }
 
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(jsonMatch[0]);
       return NextResponse.json(parsed);
     } catch {
-      console.warn('Hearing API: JSON parse failed, returning raw text as question:', raw);
-      return NextResponse.json({ status: 'question', question: raw });
+      console.warn('Hearing API: JSON parse failed:', jsonMatch[0]);
+      return NextResponse.json({ status: 'question', question: textBlock.text.trim() });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
