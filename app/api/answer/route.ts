@@ -50,7 +50,7 @@ const ANSWER_TOOL = {
     },
     required: ['section1', 'section2', 'section3', 'todaysWord', 'section5', 'amuletMessage'],
   },
-} as const;
+};
 
 export async function POST(req: NextRequest) {
   try {
