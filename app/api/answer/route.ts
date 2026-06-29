@@ -48,9 +48,9 @@ const ANSWER_TOOL = {
       section5: { type: 'string', description: '感謝できること（200〜400文字）' },
       amuletMessage: { type: 'string', description: '100文字以内のお守りメッセージ' },
     },
-    required: ['section1', 'section2', 'section3', 'todaysWord', 'section5', 'amuletMessage'],
+    required: ['section1', 'section2', 'section3', 'todaysWord', 'section5', 'amuletMessage'] as string[],
   },
-} as const;
+};
 
 export async function POST(req: NextRequest) {
   try {
