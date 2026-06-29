@@ -1,0 +1,52 @@
+name: Daily PDCA & Queue Next Posts
+
+on:
+  schedule:
+    # UTC 15:05 = JST 00:05
+    - cron: '5 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pdca:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Initialize Database
+        run: npx prisma db push --skip-generate
+
+      - name: Execute Daily PDCA & Queue
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          ACCOUNT_ID: ${{ secrets.TARGET_ACCOUNT_ID }}
+          # Set BASE_TEXT and AMAZON_URL in Settings > Variables (not Secrets)
+          BASE_TEXT: ${{ vars.BASE_TEXT }}
+          AMAZON_URL: ${{ vars.AMAZON_URL }}
+        run: npx tsx src/scripts/run-pdca-cycle.ts
+
+      - name: Commit and Push New Schedules
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add prisma/dev.db
+          git diff --cached --quiet || (git commit -m "chore: update database after PDCA cycle" && git push)
